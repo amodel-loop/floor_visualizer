@@ -7,10 +7,10 @@ app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 @app.route('/')
-
+def index():
     """Render the main page of the web application."""
     return render_template('index.html')
-
+    
 
 @app.route('/process', methods=['POST'])
 def process():
