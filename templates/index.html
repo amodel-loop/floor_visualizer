@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Fußboden Visualizer</title>
+    <!-- Link to external stylesheet for basic styling -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        /* Additional inline styles for the UI */
+        #loading {
+            display: none;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        #result-container {
+            display: none;
+            margin-top: 20px;
+        }
+        .floor-option {
+            display: inline-block;
+            margin-right: 10px;
+            text-align: center;
+        }
+        .floor-option img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border: 2px solid transparent;
+            border-radius: 4px;
+        }
+        .floor-option input[type="radio"]:checked + img {
+            border-color: #007bff;
+        }
+    </style>
+    <script>
+        // JavaScript to handle form submission asynchronously and show a loading indicator
+        function startVisualization(event) {
+            event.preventDefault();
+            var form = document.getElementById('upload-form');
+            var formData = new FormData(form);
+
+            // Show loading indicator and hide previous result
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result-container').style.display = 'none';
+
+            fetch('/process', {
+                method: 'POST',
+                body: formData
+            })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.blob();
+            })
+            .then(function (blob) {
+                // Hide loading indicator
+                document.getElementById('loading').style.display = 'none';
+
+                // Display the resulting image
+                var url = URL.createObjectURL(blob);
+                var resultImg = document.getElementById('result-image');
+                resultImg.src = url;
+                document.getElementById('result-container').style.display = 'block';
+            })
+            .catch(function (error) {
+                document.getElementById('loading').style.display = 'none';
+                alert('Fehler beim Generieren des Bildes: ' + error.message);
+            });
+        }
+    </script>
+</head>
+<body>
+    <h1>Fußboden Visualizer</h1>
+    <form id="upload-form" onsubmit="startVisualization(event)" enctype="multipart/form-data">
+        <div>
+            <label for="room_image">Raumbild hochladen:</label><br>
+            <input type="file" id="room_image" name="room_image" accept="image/*" required>
+        </div>
+        <div style="margin-top: 20px;">
+            <p>Boden auswählen:</p>
+            <div class="floor-option">
+                <label>
+                    <input type="radio" name="floor" value="shopping.jpeg" required>
+                    <img src="{{ url_for('static', filename='floors/shopping.jpeg') }}" alt="Boden 1">
+                </label>
+            </div>
+            <div class="floor-option">
+                <label>
+                    <input type="radio" name="floor" value="shopping-2.jpeg" required>
+                    <img src="{{ url_for('static', filename='floors/shopping-2.jpeg') }}" alt="Boden 2">
+                </label>
+            </div>
+            <div class="floor-option">
+                <label>
+                    <input type="radio" name="floor" value="shopping-3.jpeg" required>
+                    <img src="{{ url_for('static', filename='floors/shopping-3.jpeg') }}" alt="Boden 3">
+                </label>
+            </div>
+        </div>
+        <div style="margin-top: 20px;">
+            <button type="submit">Start</button>
+        </div>
+    </form>
+
+    <div id="loading">Bild wird generiert...</div>
+
+    <div id="result-container">
+        <h2>Generiertes Bild</h2>
+        <img id="result-image" src="" alt="Ergebnisbild" style="max-width:100%;">
+    </div>
+</body>
+</html>
