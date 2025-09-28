@@ -32,7 +32,7 @@ def process():
     room_file.save(room_path)
 
     # Determine path for selected floor texture
-    floor_dir = os.path.join(app.root_path, 'static
+    ffloor_dir = os.path.join(app.root_path, 'static', 'floors')
     floor_path = os.path.join(floor_dir, floor_filename)
 
     # Open images
