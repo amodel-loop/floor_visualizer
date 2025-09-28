@@ -7,7 +7,7 @@ app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 @app.route('/')
-def index():
+
     """Render the main page of the web application."""
     return render_template('index.html')
 
@@ -32,7 +32,7 @@ def process():
     room_file.save(room_path)
 
     # Determine path for selected floor texture
-    floor_dir = os.path.join(app.root_path, 'static', 'floors')
+    floor_dir = os.path.join(app.root_path, 'static
     floor_path = os.path.join(floor_dir, floor_filename)
 
     # Open images
