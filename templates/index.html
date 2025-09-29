@@ -2,112 +2,389 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Fußboden Visualizer</title>
-    <!-- Link to external stylesheet for basic styling -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
-        /* Additional inline styles for the UI */
-        #loading {
-            display: none;
-            font-weight: bold;
-            margin-top: 20px;
-        }
-        #result-container {
-            display: none;
-            margin-top: 20px;
-        }
-        .floor-option {
-            display: inline-block;
-            margin-right: 10px;
-            text-align: center;
-        }
-        .floor-option img {
-            width: 100px;
-            height: 100px;
-            object-fit: cover;
-            border: 2px solid transparent;
-            border-radius: 4px;
-        }
-        .floor-option input[type="radio"]:checked + img {
-            border-color: #007bff;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bodenbelag Visualisierer – KI‑Vorschau</title>
+    <!-- TailwindCSS via CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // JavaScript to handle form submission asynchronously and show a loading indicator
-        function startVisualization(event) {
-            event.preventDefault();
-            var form = document.getElementById('upload-form');
-            var formData = new FormData(form);
-
-            // Show loading indicator and hide previous result
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('result-container').style.display = 'none';
-
-            fetch('/process', {
-                method: 'POST',
-                body: formData
-            })
-            .then(function (response) {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
+        // Custom colors for the primary and secondary theme.
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#f59e0b',
+                        secondary: '#d97706'
+                    }
                 }
-                return response.blob();
-            })
-            .then(function (blob) {
-                // Hide loading indicator
-                document.getElementById('loading').style.display = 'none';
-
-                // Display the resulting image
-                var url = URL.createObjectURL(blob);
-                var resultImg = document.getElementById('result-image');
-                resultImg.src = url;
-                document.getElementById('result-container').style.display = 'block';
-            })
-            .catch(function (error) {
-                document.getElementById('loading').style.display = 'none';
-                alert('Fehler beim Generieren des Bildes: ' + error.message);
-            });
+            }
         }
     </script>
 </head>
-<body>
-    <h1>Fußboden Visualizer</h1>
-    <form id="upload-form" onsubmit="startVisualization(event)" enctype="multipart/form-data">
-        <div>
-            <label for="room_image">Raumbild hochladen:</label><br>
-            <input type="file" id="room_image" name="room_image" accept="image/*" required>
+<body class="bg-gradient-to-br from-orange-50 to-amber-50 min-h-screen">
+    <div id="app" class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-800 mb-4">Bodenbelag Visualisierer</h1>
+            <p class="text-lg text-gray-600">Sehen Sie, wie Ihr neuer Bodenbelag im Raum aussieht</p>
         </div>
-        <div style="margin-top: 20px;">
-            <p>Boden auswählen:</p>
-            <div class="floor-option">
-                <label>
-                    <input type="radio" name="floor" value="shopping.jpeg" required>
-                    <img src="{{ url_for('static', filename='shopping.jpeg') }}" alt="Boden 1">
-                </label>
-            </div>
-            <div class="floor-option">
-                <label>
-                    <input type="radio" name="floor" value="shopping-2.jpeg" required>
-                    <img src="{{ url_for('static', filename='shopping-2.jpeg') }}" alt="Boden 2">
-                </label>
-            </div>
-            <div class="floor-option">
-                <label>
-                    <input type="radio" name="floor" value="shopping-3.jpeg" required>
-                    <img src="{{ url_for('static', filename='shopping-3.jpeg') }}" alt="Boden 3">
-                </label>
+        <!-- Progress Steps -->
+        <div class="flex justify-center mb-12">
+            <div class="flex items-center space-x-8">
+                <div class="flex items-center">
+                    <div id="step1" class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">1</div>
+                    <span class="ml-2 text-sm font-medium text-gray-700">Bild hochladen</span>
+                </div>
+                <div class="w-16 h-1 bg-gray-300"></div>
+                <div class="flex items-center">
+                    <div id="step2" class="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center font-bold">2</div>
+                    <span class="ml-2 text-sm font-medium text-gray-700">Bodenbelag wählen</span>
+                </div>
+                <div class="w-16 h-1 bg-gray-300"></div>
+                <div class="flex items-center">
+                    <div id="step3" class="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center font-bold">3</div>
+                    <span class="ml-2 text-sm font-medium text-gray-700">Ergebnis ansehen</span>
+                </div>
             </div>
         </div>
-        <div style="margin-top: 20px;">
-            <button type="submit">Start</button>
+        <!-- Result Section -->
+        <div id="result-section" class="bg-white rounded-2xl shadow-xl p-8 hidden">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">Ihr neuer Bodenbelag ist fertig!</h2>
+                <p class="text-gray-600">Vergleichen Sie das Vorher‑Nachher‑Ergebnis</p>
+            </div>
+            <!-- Before/After Comparison -->
+            <div class="grid md:grid-cols-2 gap-8 mb-8">
+                <!-- Before -->
+                <div class="text-center">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Vorher</h3>
+                    <div class="bg-gray-100 rounded-lg overflow-hidden shadow-lg">
+                        <img id="before-image" src="" alt="Vorher" class="w-full h-64 object-cover">
+                    </div>
+                </div>
+                <!-- After -->
+                <div class="text-center">
+                    <h3 id="after-title" class="text-xl font-semibold text-gray-800 mb-4">Nachher</h3>
+                    <div class="bg-gray-100 rounded-lg overflow-hidden shadow-lg">
+                        <img id="after-image" src="" alt="Nachher" class="w-full h-64 object-cover">
+                    </div>
+                </div>
+            </div>
+            <!-- Action Buttons -->
+            <div class="flex justify-center space-x-4">
+                <button onclick="downloadImage()" class="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center">Bild herunterladen</button>
+                <button onclick="shareResult()" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center">Teilen</button>
+                <button onclick="startOver()" class="bg-primary hover:bg-secondary text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center">Neu starten</button>
+            </div>
         </div>
-    </form>
-
-    <div id="loading">Bild wird generiert...</div>
-
-    <div id="result-container">
-        <h2>Generiertes Bild</h2>
-        <img id="result-image" src="" alt="Ergebnisbild" style="max-width:100%;">
+        <!-- Loading Section -->
+        <div id="loading-section" class="bg-white rounded-2xl shadow-xl p-8 text-center hidden">
+            <div class="text-6xl mb-4">⚡</div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">KI generiert Ihre Visualisierung...</h2>
+            <div class="w-full bg-gray-200 rounded-full h-2 mb-4">
+                <div id="progress-bar" class="bg-primary h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <p class="text-gray-600">Dies kann 10–30 Sekunden dauern</p>
+        </div>
+        <!-- Upload Section -->
+        <div id="upload-section" class="bg-white rounded-2xl shadow-xl p-8 mb-8">
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Schritt 1: Raumbild hochladen</h2>
+                <p class="text-gray-600">Laden Sie ein Foto Ihres Raumes hoch oder nutzen Sie unser Demo‑Bild</p>
+            </div>
+            <div class="flex justify-center space-x-4 mb-6">
+                <label class="bg-primary hover:bg-secondary text-white px-6 py-3 rounded-lg cursor-pointer font-medium transition-colors">
+                    Datei auswählen
+                    <input type="file" id="room-upload" accept="image/*" class="hidden">
+                </label>
+                <button onclick="useDemoImage()" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition-colors">Demo verwenden</button>
+            </div>
+            <div id="image-preview" class="hidden">
+                <div class="bg-gray-100 rounded-lg p-4">
+                    <img id="preview-img" src="" alt="Vorschau" class="w-full max-w-md mx-auto rounded-lg">
+                </div>
+            </div>
+        </div>
+        <!-- Flooring Selection -->
+        <div id="flooring-section" class="bg-white rounded-2xl shadow-xl p-8 mb-8 hidden">
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Schritt 2: Bodenbelag auswählen</h2>
+                <p class="text-gray-600">Wählen Sie den gewünschten Bodenbelag für Ihren Raum</p>
+            </div>
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Helles Parkett -->
+                <div class="flooring-option border-2 border-gray-200 rounded-lg p-4 cursor-pointer hover:border-primary transition-colors" data-flooring="helles-parkett">
+                    <img src="{{ url_for('static', filename='floors/shopping.jpeg') }}" alt="Helles Parkett" class="w-full h-32 object-cover rounded-lg mb-3">
+                    <h3 class="font-semibold text-gray-800">Helles Parkett</h3>
+                    <p class="text-sm text-gray-600">Natürliche Eiche, hell</p>
+                </div>
+                <!-- Dunkles Parkett -->
+                <div class="flooring-option border-2 border-gray-200 rounded-lg p-4 cursor-pointer hover:border-primary transition-colors" data-flooring="dunkles-parkett">
+                    <img src="{{ url_for('static', filename='floors/shopping-2.jpeg') }}" alt="Dunkles Parkett" class="w-full h-32 object-cover rounded-lg mb-3">
+                    <h3 class="font-semibold text-gray-800">Dunkles Parkett (Versetzt)</h3>
+                    <p class="text-sm text-gray-600">Nussbaum, dunkel</p>
+                </div>
+                <!-- Mittleres Parkett -->
+                <div class="flooring-option border-2 border-gray-200 rounded-lg p-4 cursor-pointer hover:border-primary transition-colors" data-flooring="mittleres-parkett">
+                    <img src="{{ url_for('static', filename='floors/shopping-3.jpeg') }}" alt="Mittleres Parkett" class="w-full h-32 object-cover rounded-lg mb-3">
+                    <h3 class="font-semibold text-gray-800">Mittleres Parkett (Längs)</h3>
+                    <p class="text-sm text-gray-600">Eiche, mittelbraun</p>
+                </div>
+            </div>
+            <div class="text-center mt-8">
+                <button id="visualize-btn" onclick="startVisualization()" class="bg-primary hover:bg-secondary text-white px-8 py-4 rounded-lg font-bold text-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>⚡ Visualisierung starten</button>
+            </div>
+        </div>
+        <!-- Error Message -->
+        <div id="error-message" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">
+            <strong>Fehler:</strong> <span id="error-text"></span>
+        </div>
     </div>
+    <script>
+    // Global state
+    let currentStep = 1;
+    let roomImage = null;
+    let selectedFlooring = null;
+    // Map flooring identifiers to static file paths. The paths will be
+    // resolved by Flask when rendering this template.
+    const flooringImages = {
+        'helles-parkett': "{{ url_for('static', filename='floors/shopping.jpeg') }}",
+        'dunkles-parkett': "{{ url_for('static', filename='floors/shopping-2.jpeg') }}",
+        'mittleres-parkett': "{{ url_for('static', filename='floors/shopping-3.jpeg') }}"
+    };
+
+    // Initialize the application on page load
+    document.addEventListener('DOMContentLoaded', init);
+
+    function init() {
+        setupEventListeners();
+        updateUI();
+    }
+
+    function setupEventListeners() {
+        // File upload handler
+        document.getElementById('room-upload').addEventListener('change', handleFileUpload);
+        // Flooring selection handler
+        document.querySelectorAll('.flooring-option').forEach(option => {
+            option.addEventListener('click', () => selectFlooring(option.dataset.flooring));
+        });
+    }
+
+    function handleFileUpload(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                roomImage = e.target.result;
+                showImagePreview(e.target.result);
+                currentStep = 2;
+                updateUI();
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function useDemoImage() {
+        // Provide a simple demo room image (blank placeholder). You can
+        // replace this base64 string with any demo image you like.
+        roomImage = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIC...";
+        showImagePreview(roomImage);
+        currentStep = 2;
+        updateUI();
+    }
+
+    function showImagePreview(imageSrc) {
+        const preview = document.getElementById('image-preview');
+        const img = document.getElementById('preview-img');
+        img.src = imageSrc;
+        preview.classList.remove('hidden');
+    }
+
+    function selectFlooring(flooringId) {
+        selectedFlooring = flooringId;
+        // Highlight the selected option
+        document.querySelectorAll('.flooring-option').forEach(option => {
+            option.classList.remove('border-primary', 'bg-primary', 'bg-opacity-10');
+            option.classList.add('border-gray-200');
+        });
+        const selectedOption = document.querySelector(`[data-flooring="${flooringId}"]`);
+        selectedOption.classList.remove('border-gray-200');
+        selectedOption.classList.add('border-primary', 'bg-primary', 'bg-opacity-10');
+        updateUI();
+    }
+
+    async function convertImageToBase64(imagePath) {
+        try {
+            const response = await fetch(imagePath);
+            const blob = await response.blob();
+            return await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        } catch (error) {
+            console.error('Error converting image to base64:', error);
+            return null;
+        }
+    }
+
+    async function startVisualization() {
+        if (!roomImage || !selectedFlooring) {
+            showError('Bitte wählen Sie ein Raumbild und einen Bodenbelag aus.');
+            return;
+        }
+        setError(null);
+        setLoading(true);
+        currentStep = 3;
+        updateUI();
+        try {
+            // Convert flooring image to base64 for the API call
+            const flooringImagePath = flooringImages[selectedFlooring];
+            const flooringImageBase64 = await convertImageToBase64(flooringImagePath);
+            if (!flooringImageBase64) {
+                throw new Error('Fehler beim Laden des Bodenbelag-Bildes');
+            }
+            const payload = {
+                roomImage: roomImage,
+                flooringId: selectedFlooring,
+                flooringImage: flooringImageBase64
+            };
+            const response = await fetch('/api/visualize', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const result = await response.json();
+            if (result.success) {
+                showResult(result);
+            } else {
+                throw new Error(result.error || 'Unbekannter Fehler bei der KI-Generierung');
+            }
+        } catch (error) {
+            console.error('Visualization error:', error);
+            showError(error.message);
+            currentStep = 2;
+        } finally {
+            setLoading(false);
+            updateUI();
+        }
+    }
+
+    function showResult(result) {
+        // Display before/after images
+        document.getElementById('before-image').src = roomImage;
+        document.getElementById('after-image').src = result.generatedImageUrl;
+        // Update the title with the selected flooring name
+        const flooringNames = {
+            'helles-parkett': 'Helles Parkett',
+            'dunkles-parkett': 'Dunkles Parkett (Versetzt)',
+            'mittleres-parkett': 'Mittleres Parkett (Längs)'
+        };
+        document.getElementById('after-title').textContent = `Nachher – ${flooringNames[selectedFlooring]}`;
+        // Show result section
+        document.getElementById('result-section').classList.remove('hidden');
+    }
+
+    function setLoading(loading) {
+        const loadingSection = document.getElementById('loading-section');
+        if (loading) {
+            loadingSection.classList.remove('hidden');
+            // Animate progress bar
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                document.getElementById('progress-bar').style.width = progress + '%';
+            }, 500);
+            loadingSection.dataset.interval = interval;
+        } else {
+            loadingSection.classList.add('hidden');
+            if (loadingSection.dataset.interval) {
+                clearInterval(loadingSection.dataset.interval);
+            }
+            document.getElementById('progress-bar').style.width = '0%';
+        }
+    }
+
+    function setError(message) {
+        const errorDiv = document.getElementById('error-message');
+        if (message) {
+            document.getElementById('error-text').textContent = message;
+            errorDiv.classList.remove('hidden');
+        } else {
+            errorDiv.classList.add('hidden');
+        }
+    }
+
+    function showError(message) {
+        setError(message);
+    }
+
+    function updateUI() {
+        // Update step indicators
+        for (let i = 1; i <= 3; i++) {
+            const stepEl = document.getElementById(`step${i}`);
+            if (i < currentStep) {
+                stepEl.className = 'w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold';
+                stepEl.textContent = '✓';
+            } else if (i === currentStep) {
+                stepEl.className = 'w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold';
+                stepEl.textContent = i;
+            } else {
+                stepEl.className = 'w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center font-bold';
+                stepEl.textContent = i;
+            }
+        }
+        // Show/hide sections
+        document.getElementById('upload-section').style.display = currentStep === 1 ? 'block' : 'none';
+        document.getElementById('flooring-section').style.display = currentStep === 2 ? 'block' : 'none';
+        // Only show result section when the visualization is done
+        document.getElementById('result-section').style.display = currentStep === 3 && !document.getElementById('loading-section').classList.contains('hidden') ? 'none' : (currentStep === 3 ? 'block' : 'none');
+        // Enable/disable the visualize button
+        const visualizeBtn = document.getElementById('visualize-btn');
+        visualizeBtn.disabled = !(roomImage && selectedFlooring);
+    }
+
+    function downloadImage() {
+        const afterImage = document.getElementById('after-image');
+        const link = document.createElement('a');
+        link.download = 'bodenbelag-visualisierung.jpg';
+        link.href = afterImage.src;
+        link.click();
+    }
+
+    function shareResult() {
+        if (navigator.share) {
+            navigator.share({
+                title: 'Meine Bodenbelag-Visualisierung',
+                text: 'Schauen Sie sich meine neue Bodenbelag-Visualisierung an!',
+                url: window.location.href
+            });
+        } else {
+            navigator.clipboard.writeText(window.location.href);
+            alert('Link wurde in die Zwischenablage kopiert!');
+        }
+    }
+
+    function startOver() {
+        currentStep = 1;
+        roomImage = null;
+        selectedFlooring = null;
+        // Reset UI selections
+        document.getElementById('image-preview').classList.add('hidden');
+        document.querySelectorAll('.flooring-option').forEach(option => {
+            option.classList.remove('border-primary', 'bg-primary', 'bg-opacity-10');
+            option.classList.add('border-gray-200');
+        });
+        setError(null);
+        document.getElementById('result-section').classList.add('hidden');
+        updateUI();
+    }
+    </script>
 </body>
 </html>
